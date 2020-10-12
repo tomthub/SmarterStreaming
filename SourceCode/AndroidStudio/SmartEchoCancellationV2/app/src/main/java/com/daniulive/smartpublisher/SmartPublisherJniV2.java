@@ -259,17 +259,27 @@ public class SmartPublisherJniV2 {
      */
     public native int SmartPublisherSetAGC(long handle, int isAGC);
     
-    
-    /**
-     * Set Audio Echo Cancellation(设置音频回音消除)
-     * 
-     * @param isCancel: if with 1:Echo Cancellation, if with 0: does not cancel
+
+	/**
+	 * Set Audio Echo Cancellation(设置音频回音消除)
 	 *
-     * @param delay: echo delay(ms), if with 0, SDK will automatically estimate the delay.
-     * 
-     * @return {0} if successful
-     */
-    public native int SmartPublisherSetEchoCancellation(long handle, int isCancel, int delay);
+	 * @param isCancel: if with 1:Echo Cancellation, if with 0: does not cancel
+	 *
+	 * @param delay: echo delay(ms), if with 0, SDK will automatically estimate the delay.
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherSetEchoCancellation(long handle, int isCancel, int delay);
+
+
+	/**
+	 * 设置混音,目前支持两路音频混音
+	 *
+	 * @param is_mix: 1混音, 0不混音, 默认不混音
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherSetAudioMix(long handle, int is_mix);
     
     
     /**
@@ -280,7 +290,20 @@ public class SmartPublisherJniV2 {
      * @return {0} if successful
      */
     public native int SmartPublisherSetMute(long handle, int isMute);
-    
+
+
+	/**
+	 * 设置输入音量, 这个接口一般不建议调用, 在一些特殊情况下可能会用, 一般不建议放大音量
+	 *
+	 * @param index: 一般是0和1, 如果没有混音的只用0, 有混音的话, 0,1分别设置音量
+	 *
+	 * @param volume: 音量，默认是1.0，范围是[0.0, 5.0], 设置成0静音, 1音量不变
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherSetInputAudioVolume(long handle, int index, float volume);
+
+
     /**
      * Set mirror(设置前置摄像头镜像)
      * 
@@ -293,6 +316,7 @@ public class SmartPublisherJniV2 {
     public native int SmartPublisherSetMirror(long handle, int isMirror);
     
     /**
+	 * 这个接口已废弃, 录像时无需再调用
      * Set if recorder the stream to local file(设置是否启动录像)
      * 
      * @param isRecorder: 0: do not recorder; 1: recorder
@@ -300,6 +324,24 @@ public class SmartPublisherJniV2 {
      * @return {0} if successful
      */
     public native int SmartPublisherSetRecorder(long handle, int isRecorder);
+
+	/**
+	 * 音频录制开关, 目的是为了更细粒度的去控制录像, 一般不需要调用这个接口, 这个接口使用场景比如同时推送音视频，但只想录制视频，可以调用这个接口关闭音频录制
+	 *
+	 * @param is_recoder: 0: do not recorder; 1: recorder; sdk默认是1
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherSetRecorderAudio(long handle, int is_recoder);
+
+	/**
+	 * 视频录制开关, 目的是为了更细粒度的去控制录像, 一般不需要调用这个接口, 这个接口使用场景比如同时推送音视频，但只想录制音频，可以调用这个接口关闭视频录制
+	 *
+	 * @param is_recoder: 0: do not recorder; 1: recorder; sdk默认是1
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherSetRecorderVideo(long handle, int is_recoder);
     
     /**
      * Create file directory(创建录像存放目录)
@@ -424,7 +466,30 @@ public class SmartPublisherJniV2 {
 	* @return {0} if successful
 	*/
     public native int SmartPublisherOnCaptureVideoData(long handle, byte[] data, int len, int cameraType, int curOrg);
-    
+
+
+	/**
+	 * NV21数据接口
+	 *
+	 * @param data: nv21 data
+	 *
+	 * @param len: data length
+	 *
+	 * @param width: 图像宽
+	 *
+	 * @param height: 图像高
+	 *
+	 * @param y_stride:  y面步长
+	 *
+	 * @param uv_stride:  uv面步长
+	 *
+	 * rotation_degree: 顺时针旋转, 必须是0, 90, 180, 270
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherOnNV21Data(long handle, byte[] data, int len, int width, int height, int y_stride,  int uv_stride, int rotation_degree);
+
+
     /**
 	* Set live video data(no encoded data).
 	*
@@ -506,17 +571,92 @@ public class SmartPublisherJniV2 {
 	 */
 	public native int SmartPublisherOnCaptureVideoRGB565Data(long handle,ByteBuffer data, int row_stride, int width, int height);
 
+
+	/*
+	*  专门为android.media.Image的android.graphics.ImageFormat.YUV_420_888格式提供的接口
+	*
+    * @param  width: 必须是8的倍数
+	*
+    * @param  height: 必须是8的倍数
+	*
+	* @param  crop_left: 剪切左上角水平坐标, 一般根据android.media.Image.getCropRect() 填充
+	*
+	* @param  crop_top: 剪切左上角垂直坐标, 一般根据android.media.Image.getCropRect() 填充
+	*
+    * @param  crop_width: 必须是8的倍数, 填0将忽略这个参数, 一般根据android.media.Image.getCropRect() 填充
+	*
+    * @param  crop_height: 必须是8的倍数, 填0将忽略这个参数，一般根据android.media.Image.getCropRect() 填充
+    *
+    * @param y_plane 对应android.media.Image.Plane[0].getBuffer()
+    *
+    * @param y_row_stride 对应android.media.Image.Plane[0].getRowStride()
+	*
+	* @param u_plane 对应android.media.Image.Plane[1].getBuffer()
+	*
+	* @param v_plane 对应android.media.Image.Plane[2].getBuffer()
+	*
+	* @param uv_row_stride 对应android.media.Image.Plane[1].getRowStride()
+	*
+	* @param uv_pixel_stride 对应android.media.Image.Plane[1].getPixelStride()
+	*
+    * @param  rotation_degree: 顺时针旋转, 必须是0, 90, 180, 270
+	*
+    * @param  is_vertical_flip: 是否垂直翻转, 0不翻转, 1翻转
+	*
+    * @param  is_horizontal_flip：是否水平翻转, 0不翻转, 1翻转
+	*
+    * @param  scale_width: 缩放宽，必须是8的倍数, 0不缩放
+	*
+    * @param  scale_height: 缩放高, 必须是8的倍数, 0不缩放
+	*
+	* @param  scale_filter_mode: 缩放质量, 范围必须是[1,3], 传0使用默认速度
+	*
+	* @return {0} if successful
+    */
+	public native int SmartPublisherOnImageYUV420888(long handle, int width, int height,
+													 int crop_left, int crop_top, int crop_width, int crop_height,
+													 ByteBuffer y_plane, int y_row_stride,
+													 ByteBuffer u_plane, ByteBuffer v_plane, int uv_row_stride, int uv_pixel_stride,
+													 int rotation_degree, int is_vertical_flip, int is_horizontal_flip,
+													 int scale_width, int scale_height, int scale_filter_mode);
+
 	
 	/**
 	 * 传递PCM音频数据给SDK, 每10ms音频数据传入一次
 	 * 
-	 *  @param pcmdata: pcm数据
+	 *  @param pcmdata: pcm数据, 需要使用ByteBuffer.allocateDirect分配, ByteBuffer.isDirect()是true的才行.
 	 *  @param size: pcm数据大小
-	 *  @param sampleRate: 采样率，当前只支持44100
-	 *  @param channel: 通道, 当前通道只支持1
-	 *  @param per_channel_sample_number: 这个请传入的是 sampleRate/100
+	 *  @param sample_rate: 采样率，当前只支持{44100, 8000, 16000, 24000, 32000, 48000}, 推荐44100
+	 *  @param channel: 通道, 当前通道支持单通道(1)和双通道(2)，推荐单通道(1)
+	 *  @param per_channel_sample_number: 这个请传入的是 sample_rate/100
 	 */
-	public native int SmartPublisherOnPCMData(long handle, ByteBuffer pcmdata, int size, int sampleRate, int channel, int per_channel_sample_number);		
+	public native int SmartPublisherOnPCMData(long handle, ByteBuffer pcmdata, int size, int sample_rate, int channel, int per_channel_sample_number);
+
+
+	/**
+	 * 传递PCM音频数据给SDK, 每10ms音频数据传入一次
+	 *
+	 *  @param pcmdata: pcm数据, 需要使用ByteBuffer.allocateDirect分配, ByteBuffer.isDirect()是true的才行.
+	 *  @param offset: pcmdata的偏移
+	 *  @param size: pcm数据大小
+	 *  @param sample_rate: 采样率，当前只支持{44100, 8000, 16000, 24000, 32000, 48000}, 推荐44100
+	 *  @param channel: 通道, 当前通道支持单通道(1)和双通道(2)，推荐单通道(1)
+	 *  @param per_channel_sample_number: 这个请传入的是 sample_rate/100
+	 */
+	public native int SmartPublisherOnPCMDataV2(long handle, ByteBuffer pcmdata, int offset, int size, int sample_rate, int channel, int per_channel_sample_number);
+
+
+	/**
+	 * 传递PCM音频数据给SDK, 每10ms音频数据传入一次
+	 *
+	 *  @param pcm_short_array: pcm数据, short是native endian order
+	 *  @param offset: 数组偏移
+	 *  @param len: 数组项数
+	 *  @param sample_rate: 采样率，当前只支持{44100, 8000, 16000, 24000, 32000, 48000}, 推荐44100
+	 *  @param channel: 通道, 当前通道支持单通道(1)和双通道(2)，推荐单通道(1)
+	 *  @param per_channel_sample_number: 这个请传入的是 sample_rate/100
+	 */
+	public native int SmartPublisherOnPCMShortArray(long handle, short[] pcm_short_array, int offset, int len, int sample_rate, int channel, int per_channel_sample_number);
 
 	/**
 	 * Set far end pcm data
@@ -529,6 +669,34 @@ public class SmartPublisherJniV2 {
 	 * @return {0} if successful
 	 */
 	public native int SmartPublisherOnFarEndPCMData(long handle,  ByteBuffer pcmdata, int sampleRate, int channel, int per_channel_sample_number, int is_low_latency);
+
+
+	/**
+	 * 传递PCM混音音频数据给SDK, 每10ms音频数据传入一次
+	 *
+	 *  @param stream_index: 当前只能传1, 传其他返回错误
+	 *  @param pcm_data: pcm数据, 需要使用ByteBuffer.allocateDirect分配, ByteBuffer.isDirect()是true的才行.
+	 *  @param offset: pcmdata的偏移
+	 *  @param size: pcm数据大小
+	 *  @param sample_rate: 采样率，当前只支持{44100, 8000, 16000, 24000, 32000, 48000}
+	 *  @param channels: 通道, 当前通道支持单通道(1)和双通道(2)
+	 *  @param per_channel_sample_number: 这个请传入的是 sample_rate/100
+	 */
+	public native int SmartPublisherOnMixPCMData(long handle, int stream_index, ByteBuffer pcm_data, int offset, int size, int sample_rate, int channels, int per_channel_sample_number);
+
+
+	/**
+	 * 传递PCM混音音频数据给SDK, 每10ms音频数据传入一次
+	 *
+	 *  @param stream_index: 当前只能传1, 传其他返回错误
+	 *  @param pcm_short_array: pcm数据, short是native endian order
+	 *  @param offset: 数组偏移
+	 *  @param len: 数组项数
+	 *  @param sample_rate: 采样率，当前只支持{44100, 8000, 16000, 24000, 32000, 48000}
+	 *  @param channels: 通道, 当前通道支持单通道(1)和双通道(2)
+	 *  @param per_channel_sample_number: 这个请传入的是 sample_rate/100
+	 */
+	public native int SmartPublisherOnMixPCMShortArray(long handle, int stream_index, short[] pcm_short_array, int offset, int len, int sample_rate, int channels, int per_channel_sample_number);
 
 	/**
 	 * 设置编码后视频数据(H.264)
@@ -573,6 +741,34 @@ public class SmartPublisherJniV2 {
 														   int is_key_frame, long timestamp, long pts,
 														   byte[] sps, int sps_len,
 														   byte[] pps, int pps_len);
+
+	/**
+	 * 设置编码后视频数据(H.264)，如需录制编码后的数据，用此接口，且设置实际宽高
+	 *
+	 * @param codec_id, H.264对应 1
+	 *
+	 * @param data 编码后的video数据
+	 *
+	 *@param offset data的偏移
+	 *
+	 * @param size data length
+	 *
+	 * @param is_key_frame 是否I帧, if with key frame, please set 1, otherwise, set 0.
+	 *
+	 * @param timestamp video timestamp
+	 *
+	 * @param pts Presentation Time Stamp, 显示时间戳
+	 *
+	 * @param width, height: 编码后视频宽高
+	 *
+	 * @return {0} if successful
+	 */
+	public native int SmartPublisherPostVideoEncodedDataV3(long handle, int codec_id,
+														   ByteBuffer data, int offset, int size,
+														   int is_key_frame, long timestamp, long pts,
+														   byte[] sps, int sps_len,
+														   byte[] pps, int pps_len,
+														   int width, int height);
 
 	/**
 	 * 设置音频数据(AAC/PCMA/PCMU/SPEEX)
@@ -638,6 +834,47 @@ public class SmartPublisherJniV2 {
 														   ByteBuffer data, int offset, int size,
 														   int is_key_frame, long timestamp,
 														   byte[] parameter_info, int parameter_info_size);
+
+
+    /**
+     * 设置音频数据(AAC/PCMA/PCMU/SPEEX)
+     *
+     * @param codec_id:
+     *
+     *  NT_MEDIA_CODEC_ID_AUDIO_BASE = 0x10000,
+     *	NT_MEDIA_CODEC_ID_PCMA = NT_MEDIA_CODEC_ID_AUDIO_BASE,
+     *	NT_MEDIA_CODEC_ID_PCMU,
+     *	NT_MEDIA_CODEC_ID_AAC,
+     *	NT_MEDIA_CODEC_ID_SPEEX,
+     *	NT_MEDIA_CODEC_ID_SPEEX_NB,
+     *	NT_MEDIA_CODEC_ID_SPEEX_WB,
+     *	NT_MEDIA_CODEC_ID_SPEEX_UWB,
+     *
+     * @param data audio数据
+     *
+     * @param offset data的偏移
+     *
+     * @param size data length
+     *
+     * @param is_key_frame 是否I帧, if with key frame, please set 1, otherwise, set 0, audio忽略
+     *
+     * @param timestamp video timestamp
+     *
+     * @param parameter_info 用于AAC special config信息填充
+     *
+     * @param parameter_info_size parameter info size
+     *
+     * @param sample_rate 采样率,如果需要录像的话必须传正确的值
+     *
+     *@param channels 通道数, 如果需要录像的话必须传正确的值, 一般是1或者2
+     *
+     * @return {0} if successful
+     */
+    public native int SmartPublisherPostAudioEncodedDataV3(long handle, int codec_id,
+                                                           ByteBuffer data, int offset, int size,
+                                                           int is_key_frame, long timestamp,
+                                                           byte[] parameter_info, int parameter_info_size,
+                                                           int sample_rate, int channels);
 
 	/*++++发送用户自定义数据相关接口++++*/
 	/*

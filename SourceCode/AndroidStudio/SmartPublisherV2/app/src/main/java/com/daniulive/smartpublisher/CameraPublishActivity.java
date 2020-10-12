@@ -124,6 +124,8 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
 
     private Spinner swVideoEncoderSpeedSelector;
 
+    private Spinner in_audio_volume_selector_;
+
     /* 推送类型选择
      * 0: 视频软编码(H.264)
      * 1: 视频硬编码(H.264)
@@ -193,6 +195,9 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
     private boolean is_agc = false;
     private boolean is_speex = false;
     private boolean is_mute = false;
+
+    private float in_audio_volume_ = 1.0f;
+
     private boolean is_mirror = false;
     private int sw_video_encoder_speed = 3;
     private boolean is_sw_vbr_mode = true;
@@ -413,6 +418,41 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
         btnMute = (Button) findViewById(R.id.button_mute);
         btnMute.setOnClickListener(new ButtonMuteListener());
 
+        in_audio_volume_selector_ = (Spinner) findViewById(R.id.in_audio_volume_selector);
+
+        final String[] in_audio_volume_sel = new String[]{ "0", "0.2", "0.5", "0.8","1", "1.5",  "2",  "2.5",  "3",  "3.5",  "4",  "4.5",  "5"};
+        ArrayAdapter<String> adapter_in_audio_volume = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, in_audio_volume_sel);
+
+        adapter_in_audio_volume.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        in_audio_volume_selector_.setAdapter(adapter_in_audio_volume);
+
+        in_audio_volume_selector_.setSelection(4, true);
+
+        in_audio_volume_selector_.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view,
+                                       int position, long id) {
+                Log.i(TAG, "Currently audio volume choosing: " + in_audio_volume_sel[position]);
+
+                in_audio_volume_ = Float.parseFloat(in_audio_volume_sel[position]);
+
+                Log.i(TAG, "Choose audio volume=" + in_audio_volume_);
+
+                if(isPushingRtmp || isRecording || isRTSPPublisherRunning || isPushingRtsp)  {
+                    if (libPublisher != null && publisherHandle != 0) {
+                        libPublisher.SmartPublisherSetInputAudioVolume(publisherHandle, 0 , in_audio_volume_);
+                    }
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+
         btnMirror = (Button) findViewById(R.id.button_mirror);
         btnMirror.setOnClickListener(new ButtonMirrorListener());
 
@@ -594,14 +634,29 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
     class NTAudioRecordV2CallbackImpl implements NTAudioRecordV2Callback {
         @Override
         public void onNTAudioRecordV2Frame(ByteBuffer data, int size, int sampleRate, int channel, int per_channel_sample_number) {
-    		 /*
-    		 Log.i(TAG, "onNTAudioRecordV2Frame size=" + size + " sampleRate=" + sampleRate + " channel=" + channel
+
+    		 /*Log.i(TAG, "onNTAudioRecordV2Frame size=" + size + " sampleRate=" + sampleRate + " channel=" + channel
     				 + " per_channel_sample_number=" + per_channel_sample_number);
-    		 
     		 */
 
+
             if (publisherHandle != 0) {
-                libPublisher.SmartPublisherOnPCMData(publisherHandle, data, size, sampleRate, channel, per_channel_sample_number);
+               libPublisher.SmartPublisherOnPCMData(publisherHandle, data, size, sampleRate, channel, per_channel_sample_number);
+
+               //libPublisher.SmartPublisherOnPCMDataV2(publisherHandle, data, 0, size, sampleRate, channel, per_channel_sample_number);
+
+               /* data.rewind();
+               java.nio.ByteOrder old_order = data.order();
+               data.order(java.nio.ByteOrder.nativeOrder());
+               java.nio.ShortBuffer short_buffer = data.asShortBuffer();
+               data.order(old_order);
+
+               short[] short_array =  new short[short_buffer.remaining()];
+               short_buffer.get(short_array);
+
+               libPublisher.SmartPublisherOnPCMShortArray(publisherHandle, short_array, 0, short_array.length, sampleRate, channel, per_channel_sample_number);
+               */
+
             }
         }
     }
@@ -624,6 +679,8 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
 
             audioRecord_.AddCallback(audioRecordCallback_);
 
+            //audioRecord_.Start(44100,  1);
+
             audioRecord_.Start();
 
             Log.i(TAG, "CheckInitAudioRecorder call audioRecord_.start()---...");
@@ -636,11 +693,10 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
         }
     }
 
-    //Configure recorder related function.
-    void ConfigRecorderFuntion(boolean isNeedLocalRecorder) {
+    void ConfigRecorderParam() {
         if (libPublisher != null && publisherHandle != 0) {
-            if (isNeedLocalRecorder) {
                 if (recDir != null && !recDir.isEmpty()) {
+
                     int ret = libPublisher.SmartPublisherCreateFileDirectory(recDir);
                     if (0 == ret) {
                         if (0 != libPublisher.SmartPublisherSetRecorderDirectory(publisherHandle, recDir)) {
@@ -648,10 +704,9 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
                             return;
                         }
 
-                        if (0 != libPublisher.SmartPublisherSetRecorder(publisherHandle, 1)) {
-                            Log.e(TAG, "SmartPublisherSetRecorder failed.");
-                            return;
-                        }
+                        // 更细粒度控制录像的, 一般情况无需调用
+                        //libPublisher.SmartPublisherSetRecorderAudio(publisherHandle, 0);
+                       //libPublisher.SmartPublisherSetRecorderVideo(publisherHandle, 0);
 
                         if (0 != libPublisher.SmartPublisherSetRecorderFileMaxSize(publisherHandle, 200)) {
                             Log.e(TAG, "SmartPublisherSetRecorderFileMaxSize failed.");
@@ -662,11 +717,6 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
                         Log.e(TAG, "Create record dir failed, path:" + recDir);
                     }
                 }
-            } else {
-                if (0 != libPublisher.SmartPublisherSetRecorder(publisherHandle, 0)) {
-                    Log.e(TAG, "SmartPublisherSetRecorder failed.");
-                }
-            }
         }
     }
 
@@ -1086,6 +1136,8 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
 
         libPublisher.SmartPublisherSetAGC(publisherHandle, is_agc ? 1 : 0);
 
+        libPublisher.SmartPublisherSetInputAudioVolume(publisherHandle, 0 , in_audio_volume_);
+
         // libPublisher.SmartPublisherSetClippingMode(publisherHandle, 0);
 
         libPublisher.SmartPublisherSetSWVideoEncoderProfile(publisherHandle, sw_video_encoder_profile);
@@ -1284,7 +1336,7 @@ public class CameraPublishActivity extends Activity implements Callback, Preview
                 InitAndSetConfig();
             }
 
-            ConfigRecorderFuntion(true);
+            ConfigRecorderParam();
 
             int startRet = libPublisher.SmartPublisherStartRecorder(publisherHandle);
             if (startRet != 0) {

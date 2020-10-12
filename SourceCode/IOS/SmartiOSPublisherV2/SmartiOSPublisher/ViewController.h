@@ -6,7 +6,7 @@
 //  website: https://www.daniulive.com
 //
 //  Created by daniulive on 16/3/24.
-//  Copyright © 2014~2019 daniulive. All rights reserved.
+//  Copyright © 2014~2020 daniulive. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>
@@ -20,7 +20,8 @@
                 streamQuality:(DNVideoStreamingQuality)streamQuality
                      audioOpt:(NSInteger)audioOpt
                      videoOpt:(NSInteger)videoOpt
-                     isBeauty:(Boolean)isBeauty;
+                     isBeauty:(Boolean)isBeauty
+                     scale_rate:(CGFloat)scale_rate;
 
 -(void)setRTMPKeyIV:(NSString*)key iv:(NSString*)iv;
 
